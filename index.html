@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JGA Berlin 🎉</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #f5f4f0; color: #1a1a1a; }
+    header { padding: 1.25rem 1.5rem; background: #fff; border-bottom: 1px solid #e5e3dc; }
+    header h1 { font-size: 1.2rem; font-weight: 600; }
+    header p { font-size: 0.85rem; color: #666; margin-top: 2px; }
+    #map { width: 100%; height: calc(100vh - 130px); }
+    .popup-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 1000; align-items: center; justify-content: center; }
+    .popup-overlay.active { display: flex; }
+    .popup-card { background: #fff; border-radius: 14px; padding: 1.5rem; max-width: 360px; width: 90%; position: relative; }
+    .popup-close { position: absolute; top: 12px; right: 14px; background: none; border: none; cursor: pointer; font-size: 22px; color: #888; line-height: 1; }
+    .popup-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; margin-bottom: 10px; }
+    .popup-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 3px; }
+    .popup-address { font-size: 12px; color: #888; margin-bottom: 12px; }
+    .popup-desc { font-size: 14px; line-height: 1.65; color: #333; }
+    .popup-link { display: inline-flex; align-items: center; gap: 5px; margin-top: 12px; font-size: 13px; color: #185FA5; text-decoration: none; }
+    .legend { display: flex; gap: 14px; flex-wrap: wrap; padding: 10px 1.5rem; background: #fff; border-top: 1px solid #e5e3dc; font-size: 12px; color: #555; }
+    .legend-item { display: flex; align-items: center; gap: 6px; }
+    .legend-dot { width: 12px; height: 12px; border-radius: 50%; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>JGA Berlin 🎉</h1>
+  <p>Klick auf eine Station für mehr Infos</p>
+</header>
+
+<div id="map"></div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:#C34AB7"></div> Start</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#185FA5"></div> Station</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#D85A30"></div> Ende</div>
+</div>
+
+<div class="popup-overlay" id="popup">
+  <div class="popup-card">
+    <button class="popup-close" id="popup-close">×</button>
+    <div id="popup-badge" class="popup-badge"></div>
+    <div id="popup-title" class="popup-title"></div>
+    <div id="popup-address" class="popup-address"></div>
+    <div id="popup-desc" class="popup-desc"></div>
+    <a id="popup-link" class="popup-link" href="#" target="_blank" style="display:none">↗ Mehr erfahren</a>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const stations = [
+  {
+    num: "S", label: "Start", lat: 52.5713301, lng: 13.376755,
+    name: "Charlies Wohnung",
+    address: "Herbststraße 20, 13409 Berlin",
+    desc: "Auftakt des JGAs mit geselligem Frühstück und einer kreativen Malaktion. Der Morgen gehört uns! 🎨",
+    color: "#C34AB7", link: null
+  },
+  {
+    num: "2", label: "Station 2", lat: 52.5283411, lng: 13.372137,
+    name: "Hamburger Bahnhof",
+    address: "Invalidenstraße 50, 10557 Berlin",
+    desc: "Museumsbesuch und Entdeckung der aktuellen Ausstellung: Chanel Commission – Lina Lapelytė: \"We Make Years Out of Hours\".",
+    color: "#185FA5",
+    link: "https://www.smb.museum/museen-einrichtungen/hamburger-bahnhof/ausstellungen/detail/chanel-commission-lina-lapelyte-we-make-years-out-of-hours/"
+  },
+  {
+    num: "3", label: "Station 3", lat: 52.5294585, lng: 13.4011943,
+    name: "Cult Curry Mitte",
+    address: "Torstraße 122, 10119 Berlin",
+    desc: "Hier stärken wir uns mit einer Currywurst und machen uns über unsere Fans lustig. Wohl bekomm's! 🌭",
+    color: "#185FA5", link: null
+  },
+  {
+    num: "4", label: "Station 4", lat: 52.4983833, lng: 13.4336923,
+    name: "Schwarzlicht Minigolf Berlin",
+    address: "Görlitzer Str. 1/Haus 1, 10997 Berlin",
+    desc: "Hier spielen wir eine Runde Minigolf und sind empört, wenn wir verlieren. Ehrensache! ⛳",
+    color: "#185FA5", link: null
+  },
+  {
+    num: "5", label: "Station 5", lat: 52.5020624, lng: 13.4307922,
+    name: "Lerchen&Eulen",
+    address: "Pücklerstraße 33, 10997 Berlin",
+    desc: "Hier spielen wir bei einem leckeren Kaltgetränk Hangman. Auf's Wurstbrot! 🍺",
+    color: "#185FA5", link: null
+  },
+  {
+    num: "E", label: "Ende", lat: 52.5052743, lng: 13.4484712,
+    name: "Monster Ronson's Ichiban Karaoke",
+    address: "Warschauer Str. 34, 10243 Berlin",
+    desc: "Ran ans Mikrofon! Eine Kapsel ist exklusiv für uns reserviert. Lasst uns singen und den Abend ausklingen lassen! 🎤",
+    color: "#D85A30", link: null
+  }
+];
+
+const map = L.map('map').setView([52.515, 13.41], 12);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© <a href="https://openstreetmap.org">OpenStreetMap</a>'
+}).addTo(map);
+
+L.polyline(stations.map(s => [s.lat, s.lng]), {
+  color: '#aaa', weight: 2, dashArray: '6,6', opacity: 0.8
+}).addTo(map);
+
+stations.forEach((s, i) => {
+  const icon = L.divIcon({
+    className: '',
+    html: `<div style="width:34px;height:34px;border-radius:50%;background:${s.color};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:13px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.25);font-family:system-ui,sans-serif">${s.num}</div>`,
+    iconSize: [34, 34],
+    iconAnchor: [17, 17]
+  });
+  L.marker([s.lat, s.lng], { icon }).addTo(map).on('click', () => openPopup(i));
+});
+
+function openPopup(i) {
+  const s = stations[i];
+  const badge = document.getElementById('popup-badge');
+  badge.textContent = s.label;
+  badge.style.background = s.color + '22';
+  badge.style.color = s.color;
+  badge.style.border = '1px solid ' + s.color + '55';
+  document.getElementById('popup-title').textContent = s.name;
+  document.getElementById('popup-address').textContent = s.address;
+  document.getElementById('popup-desc').textContent = s.desc;
+  const linkEl = document.getElementById('popup-link');
+  if (s.link) { linkEl.href = s.link; linkEl.style.display = 'inline-flex'; }
+  else { linkEl.style.display = 'none'; }
+  document.getElementById('popup').classList.add('active');
+}
+
+document.getElementById('popup-close').addEventListener('click', () =>
+  document.getElementById('popup').classList.remove('active'));
+document.getElementById('popup').addEventListener('click', e => {
+  if (e.target === document.getElementById('popup'))
+    document.getElementById('popup').classList.remove('active');
+});
+</script>
+</body>
+</html>
